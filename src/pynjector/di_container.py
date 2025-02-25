@@ -4,7 +4,7 @@ import inspect
 
 class DIContainer:
     """
-    A simple dependency injection container that automatically resolves dependencies
+    A simple dependency injection pynjector that automatically resolves dependencies
     based on constructor parameters using type hints.
 
     It allows you to bind classes and automatically resolve their dependencies
@@ -13,13 +13,13 @@ class DIContainer:
 
     def __init__(self):
         """
-        Initializes the DI container.
+        Initializes the DI pynjector.
         """
         self._bindings: Dict[Type, Callable[[], Any]] = {}
 
     def bind(self, class_type: Type, factory: Callable[[], Any] | Any | None = None):
         """
-        Binds a class to the container. You can optionally provide a factory function or an already created instance.
+        Binds a class to the pynjector. You can optionally provide a factory function or an already created instance.
         If no factory is provided, the default constructor of the class is used.
 
         If no factory is provided, the class's constructor must not have any parameters,
@@ -27,7 +27,7 @@ class DIContainer:
 
         If an instance is provided, it will be used as the singleton instance of the class.
 
-        :param class_type: The class type that should be bound in the container.
+        :param class_type: The class type that should be bound in the pynjector.
         :param factory: A function or lambda that creates an instance of the class, or an already created instance.
                         If not provided, the class will be instantiated using its constructor.
         """

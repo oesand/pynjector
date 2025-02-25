@@ -26,11 +26,13 @@ poetry add pynjector
 ## 🎯 Usage
 
 ```python
-from pynjector import DIContainer
+from src.pynjector import DIContainer
+
 
 class Database:
     def query(self) -> str:
         return "Data from Database"
+
 
 class Service:
     def __init__(self, db: Database):
@@ -39,7 +41,8 @@ class Service:
     def get_data(self) -> str:
         return self.db.query()
 
-# Create the container
+
+# Create the pynjector
 container = DIContainer()
 
 # Register dependencies

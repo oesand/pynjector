@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pynjector"
+version = "0.1.1"
+description = "A lightweight Dependency Injection (DI) container for Python"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Sa(n)d", email = "oesand@github.com"}
+]
+keywords = ["dependency injection", "di", "ioc", "python"]
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[project.urls]
+Homepage = "https://github.com/oesand/pynjector"
+Repository = "https://github.com/oesand/pynjector"
+
+[tool.setuptools]
+packages = ["pynjector"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
