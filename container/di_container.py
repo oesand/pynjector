@@ -42,7 +42,9 @@ class DIContainer:
         if isinstance(factory, class_type):
             self._bindings[class_type] = factory
         elif callable(factory):
-            # Register the callable to create instances of the class
+            constructor_params = inspect.signature(class_type).parameters
+            if len(constructor_params) != 0:
+                raise ValueError(f"Initialize function parameters of class '{class_type.__name__}' should be empty.")
             self._bindings[class_type] = factory
         elif not factory:
             constructor_params = inspect.signature(class_type).parameters
@@ -80,24 +82,24 @@ class DIContainer:
         if not callable(initializer):
             return initializer
 
-        constructor_params = inspect.signature(initializer).parameters
-        resolved_params = {}
+        if isinstance(initializer, type):
+            constructor_params = inspect.signature(initializer).parameters
+            resolved_params = {}
 
-        # Resolve dependencies for each constructor parameter with type annotations
-        for param, param_details in constructor_params.items():
-            if param == 'self':
-                continue
+            # Resolve dependencies for each constructor parameter with type annotations
+            for param, param_details in list(constructor_params.items())[0:]:
+                param_type = param_details.annotation
+                if param_type is inspect.Signature.empty:
+                    raise ValueError(f"Constructor parameter '{param}' of class '{class_type.__name__}'"
+                                     f" is missing a type annotation.")
 
-            if param_details.annotation is inspect.Signature.empty:
-                raise ValueError(f"Constructor parameter '{param}' of class '{class_type.__name__}'"
-                                 f" is missing a type annotation.")
+                if param_type not in self._bindings:
+                    raise ValueError(f"Constructor parameter '{param}' of class '{class_type.__name__}' "
+                                     f"depends on unregistered type '{param_type.__name__}'.")
 
-            param_type = param_details.annotation
-            if param_type not in self._bindings:
-                raise ValueError(f"Constructor parameter '{param}' of class '{class_type.__name__}' "
-                                 f"depends on unregistered type '{param_type.__name__}'.")
+                resolved_params[param] = self._resolve_dependencies(param_type)
 
-            resolved_params[param] = self._resolve_dependencies(param_type)
+            # Instantiate the class with resolved dependencies
+            return initializer(**resolved_params)
 
-        # Instantiate the class with resolved dependencies
-        return class_type(**resolved_params)
+        return initializer()
