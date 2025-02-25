@@ -23,8 +23,5 @@ classifiers = [
 Homepage = "https://github.com/oesand/pynjector"
 Repository = "https://github.com/oesand/pynjector"
 
-[tool.setuptools]
-packages = ["pynjector"]
-
 [tool.setuptools.packages.find]
 where = ["src"]
