@@ -1,4 +1,4 @@
-# Pyjector
+# Pynjector
 
 A lightweight Dependency Injection (DI) container for Python that allows automatic resolution of dependencies based on constructor type hints.
 
@@ -13,13 +13,13 @@ A lightweight Dependency Injection (DI) container for Python that allows automat
 Install via pip:
 
 ```sh
-pip install pyjector
+pip install pynjector
 ```
 
 ## 🎯 Usage
 
 ```python
-from pyjector import DIContainer
+from pynjector import DIContainer
 
 class Database:
     def query(self) -> str:
