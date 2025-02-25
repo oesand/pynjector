@@ -1,4 +1,5 @@
 # Pynjector
+![PyPI](https://img.shields.io/pypi/v/pynjector?style=flat-square)
 
 A lightweight Dependency Injection (DI) container for Python that allows automatic resolution of dependencies based on constructor type hints.
 
@@ -14,6 +15,12 @@ Install via pip:
 
 ```sh
 pip install pynjector
+```
+
+Install via poetry:
+
+```sh
+poetry add pynjector
 ```
 
 ## 🎯 Usage
