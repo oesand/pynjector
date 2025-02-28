@@ -1,5 +1,9 @@
-from typing import Type, Callable, Dict, Any
+from typing import Callable, Any
+from itertools import islice
 import inspect
+
+from .lifetime import Lifetime
+from .di_cell import DiCell, DEFAULT_TYPES
 
 
 class DIContainer:
@@ -12,94 +16,71 @@ class DIContainer:
     """
 
     def __init__(self):
+        self.__bindings: dict[type, DiCell] = {}
+
+    def bind(self, class_type: type, factory: Lifetime | Callable[[], Any] | Any | None = None):
         """
-        Initializes the DI pynjector.
-        """
-        self._bindings: Dict[Type, Callable[[], Any]] = {}
+        Binds a class to the DI container. Supports:
+        - A concrete instance (Singleton)
+        - A factory function for creating instances
+        - Direct instantiation using type constructor
 
-    def bind(self, class_type: Type, factory: Callable[[], Any] | Any | None = None):
-        """
-        Binds a class to the pynjector. You can optionally provide a factory function or an already created instance.
-        If no factory is provided, the default constructor of the class is used.
-
-        If no factory is provided, the class's constructor must not have any parameters,
-        and all parameters must be registered classes.
-
-        If an instance is provided, it will be used as the singleton instance of the class.
-
-        :param class_type: The class type that should be bound in the pynjector.
-        :param factory: A function or lambda that creates an instance of the class, or an already created instance.
-                        If not provided, the class will be instantiated using its constructor.
+        :param class_type: The class type to bind.
+        :param factory: Can be an instance, a factory function, a lifetime type, or None.
+        :raises ValueError: If the provided class type or factory is invalid.
         """
         if not isinstance(class_type, type):
             raise ValueError(f"Expected 'class_type' to be a class, but got {type(class_type)}.")
 
-        if factory and not (callable(factory) or isinstance(factory, class_type)):
-            raise ValueError(
-                f"Expected 'factory' to be callable or an instance of {class_type.__name__}, but got {type(factory).__name__}.")
+        if class_type in DEFAULT_TYPES:
+            raise TypeError(f"Invalid type: {class_type.__name__} is a default immutable type and cannot be used.")
 
-        # If factory is an instance, treat it as a singleton
+        if factory and not (callable(factory) or isinstance(factory, class_type) or isinstance(factory, Lifetime)):
+            raise ValueError(
+                f"Expected 'factory' to be lifetime or callable or an instance of {class_type.__name__}, but got {type(factory).__name__}.")
+
         if isinstance(factory, class_type):
-            self._bindings[class_type] = factory
+            self.__bindings[class_type] = DiCell.instance(class_type, factory)
         elif callable(factory):
             constructor_params = inspect.signature(class_type).parameters
             if len(constructor_params) != 0:
                 raise ValueError(f"Initialize function parameters of class '{class_type.__name__}' should be empty.")
-            self._bindings[class_type] = factory
-        elif not factory:
+            self.__bindings[class_type] = DiCell.factory(class_type, factory)
+        else:
             constructor_params = inspect.signature(class_type).parameters
             if len(constructor_params) > 1:  # More than just 'self'
                 # Check that each constructor parameter is registered
-                for param, param_details in constructor_params.items():
-                    if param != 'self':
-                        if param_details.annotation is inspect.Signature.empty:
-                            raise ValueError(f"Constructor parameter '{param}' is missing a type annotation.")
-                        param_type = param_details.annotation
-                        if isinstance(param_type, type) and param_type not in self._bindings:
-                            raise ValueError(f"Constructor parameter '{param}' of class '{class_type.__name__}' "
-                                             f"depends on unregistered type '{param_type.__name__}'.")
-            # Register the class with the default constructor
-            self._bindings[class_type] = class_type
+                for param, param_details in islice(constructor_params.items(), 0, None):
+                    if param_details.annotation is inspect.Signature.empty:
+                        raise ValueError(f"Constructor parameter '{param}' is missing a type annotation.")
 
-    def resolve(self, class_type: Type) -> Any:
+                    param_type = param_details.annotation
+                    if isinstance(param_type, type) and param_type not in self.__bindings:
+                        raise ValueError(f"Constructor parameter '{param}' of class '{class_type.__name__}' "
+                                         f"depends on unregistered type '{param_type.__name__}'.")
+
+            self.__bindings[class_type] = DiCell.typed(class_type, factory)
+
+    def resolve(self, class_type: type) -> Any:
         """
-        Resolves a dependency and returns an instance of the class.
-        Automatically resolves constructor dependencies based on type annotations.
-        It resolves registered classes and unregistered classes by analyzing constructor annotations.
+        Resolves an instance of a class with its dependencies injected.
+
+        - If the class is registered, it retrieves the instance from the container.
+        - If the class is not registered, it attempts to resolve dependencies automatically.
 
         :param class_type: The class type to be instantiated.
-        :return: An instance of the specified class with its dependencies injected.
+        :return: An instance of the class with its dependencies injected.
         :raises ValueError: If a constructor parameter is missing a type annotation or cannot be resolved.
         """
 
         if not isinstance(class_type, type):
             raise ValueError(f"Expected 'class_type' to be a class, but got {type(class_type)}.")
 
-        return self._resolve_dependencies(class_type)
+        if class_type in DEFAULT_TYPES:
+            raise TypeError(f"Invalid type: {class_type.__name__} is a default immutable type and cannot be used.")
 
-    def _resolve_dependencies(self, class_type: Type) -> Any:
-        initializer = self._bindings.get(class_type, class_type)
-        if not callable(initializer):
-            return initializer
+        resolved_cell = self.__bindings.get(class_type, None)
+        if resolved_cell is None:
+            return DiCell.resolve_type(class_type, self.__bindings)
 
-        if isinstance(initializer, type):
-            constructor_params = inspect.signature(initializer).parameters
-            resolved_params = {}
-
-            # Resolve dependencies for each constructor parameter with type annotations
-            for param, param_details in list(constructor_params.items())[0:]:
-                param_type = param_details.annotation
-                if param_type is inspect.Signature.empty:
-                    raise ValueError(f"Constructor parameter '{param}' of class '{class_type.__name__}'"
-                                     f" is missing a type annotation.")
-
-                if param_type not in self._bindings:
-                    raise ValueError(f"Constructor parameter '{param}' of class '{class_type.__name__}' "
-                                     f"depends on unregistered type '{param_type.__name__}'.")
-
-                resolved_params[param] = self._resolve_dependencies(param_type)
-
-            # Instantiate the class with resolved dependencies
-            return initializer(**resolved_params)
-
-        return initializer()
+        return resolved_cell.get_instance(self.__bindings)
