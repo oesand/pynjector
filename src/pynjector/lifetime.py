@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class Lifetime(Enum):
+class DiLifetime(Enum):
     """
     Represents the lifetime of an object or instance.
     """

@@ -1,11 +1,13 @@
-from typing import Callable, Any
+from typing import Callable, TypeVar
 from itertools import islice
 import inspect
 
-from .lifetime import Lifetime
-from .di_cell import DiCell, DEFAULT_TYPES
+from .lifetime import DiLifetime
+from .cell import DiCell, FORBIDDEN_TYPES
+from .resolver import DiResolver
 
 
+_T = TypeVar('_T', bound=object)
 class DIContainer:
     """
     A simple dependency injection pynjector that automatically resolves dependencies
@@ -16,9 +18,9 @@ class DIContainer:
     """
 
     def __init__(self):
-        self.__bindings: dict[type, DiCell] = {}
+        self.__bindings: dict[type, DiCell] = {DiResolver: DiCell.instance(DiResolver, DiResolver(self))}
 
-    def bind(self, class_type: type, factory: Lifetime | Callable[[], Any] | Any | None = None):
+    def bind(self, class_type: type, factory: DiLifetime | Callable[[], any] | any | None = None):
         """
         Binds a class to the DI container. Supports:
         - A concrete instance (Singleton)
@@ -32,10 +34,13 @@ class DIContainer:
         if not isinstance(class_type, type):
             raise ValueError(f"Expected 'class_type' to be a class, but got {type(class_type)}.")
 
-        if class_type in DEFAULT_TYPES:
+        if isinstance(class_type, (DIContainer, DiCell, DiResolver)):
+            raise TypeError(f"Invalid type: {class_type.__name__} - injector types cannot be used.")
+
+        if class_type in FORBIDDEN_TYPES:
             raise TypeError(f"Invalid type: {class_type.__name__} is a default immutable type and cannot be used.")
 
-        if factory and not (callable(factory) or isinstance(factory, class_type) or isinstance(factory, Lifetime)):
+        if factory and not (callable(factory) or isinstance(factory, class_type) or isinstance(factory, DiLifetime)):
             raise ValueError(
                 f"Expected 'factory' to be lifetime or callable or an instance of {class_type.__name__}, but got {type(factory).__name__}.")
 
@@ -61,7 +66,7 @@ class DIContainer:
 
             self.__bindings[class_type] = DiCell.typed(class_type, factory)
 
-    def resolve(self, class_type: type) -> Any:
+    def resolve(self, class_type: type[_T]) -> _T:
         """
         Resolves an instance of a class with its dependencies injected.
 
@@ -76,7 +81,7 @@ class DIContainer:
         if not isinstance(class_type, type):
             raise ValueError(f"Expected 'class_type' to be a class, but got {type(class_type)}.")
 
-        if class_type in DEFAULT_TYPES:
+        if class_type in FORBIDDEN_TYPES:
             raise TypeError(f"Invalid type: {class_type.__name__} is a default immutable type and cannot be used.")
 
         resolved_cell = self.__bindings.get(class_type, None)

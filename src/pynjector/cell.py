@@ -1,13 +1,13 @@
-from typing import Any, Callable
+from typing import Callable
 from itertools import islice
 from threading import Lock
 from enum import Enum
 import inspect
 
-from .lifetime import Lifetime
+from .lifetime import DiLifetime
 
 
-DEFAULT_TYPES = (int, float, str, bool, bytes, tuple, frozenset, complex)
+FORBIDDEN_TYPES = (int, float, str, bool, bytes, tuple, frozenset, complex, Enum)
 
 
 class DiCellKind(Enum):
@@ -38,7 +38,7 @@ class DiCell:
         return self
 
     @classmethod
-    def typed(cls, class_type: type, lifetime: Lifetime | None = None):
+    def typed(cls, class_type: type, lifetime: DiLifetime | None = None):
         """
         Registers a class type with an lifetime policy.
 
@@ -46,13 +46,13 @@ class DiCell:
         :param lifetime: The lifetime policy (default: SINGLETON).
         """
         self = cls.__default_factory(DiCellKind.TYPED, class_type)
-        self._lifetime = lifetime or Lifetime.MAYFLY
-        if self._lifetime == Lifetime.SINGLETON:
+        self._lifetime = lifetime or DiLifetime.MAYFLY
+        if self._lifetime == DiLifetime.SINGLETON:
             self._lock = Lock()
         return self
 
     @classmethod
-    def factory(cls, class_type: type, initializer: Callable[[], Any]):
+    def factory(cls, class_type: type, initializer: Callable[[], any]):
         """
         Registers a factory function that will create an instance when needed.
 
@@ -64,7 +64,7 @@ class DiCell:
         return self
 
     @classmethod
-    def instance(cls, class_type: type, instance: Any):
+    def instance(cls, class_type: type, instance: any):
         """
         Registers a pre-instantiated object.
 
@@ -101,7 +101,7 @@ class DiCell:
             resolved_params[param] = resolved_cell.get_instance(bindings)
         return class_type(**resolved_params)
 
-    def get_instance(self, bindings: dict[type, 'DiCell']) -> Any:
+    def get_instance(self, bindings: dict[type, 'DiCell']) -> any:
         """
         Retrieves an instance of the registered type, handling different DI cell kinds accordingly.
 
@@ -109,14 +109,14 @@ class DiCell:
         :return: An instance of the required type.
         """
         if self._kind == DiCellKind.TYPED:
-            if self._lifetime == Lifetime.SINGLETON:
+            if self._lifetime == DiLifetime.SINGLETON:
                 with self._lock:
                     if hasattr(self, '_instance'):
                         return self._instance
                     self._instance = self.resolve_type(self._class_type, bindings)
                     return self._instance
 
-            elif self._lifetime == Lifetime.MAYFLY:
+            elif self._lifetime == DiLifetime.MAYFLY:
                 return self.resolve_type(self._class_type, bindings)
 
             raise Exception(f"Invalid lifetime policy of type '{self._class_type.__name__}'.")
