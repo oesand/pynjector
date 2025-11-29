@@ -12,7 +12,7 @@ authors = [
     {name = "Sa(n)d", email = "oesand@github.com"}
 ]
 keywords = ["dependency injection", "di", "ioc", "python"]
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -25,3 +25,11 @@ Repository = "https://github.com/oesand/pynjector"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-vv"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.0.1"
