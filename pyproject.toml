@@ -32,4 +32,4 @@ testpaths = ["tests"]
 addopts = "-vv"
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^9.0.3"
+pytest = "^9.1.0"
